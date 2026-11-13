@@ -7,8 +7,6 @@ type Seccion =
   | "resumen"
   | "directos"
   | "videos"
-  | "kick-directos"
-  | "kick-videos"
   | "editor"
   | "biblioteca";
 
@@ -26,37 +24,29 @@ const HASH_POR_SECCION: Record<Seccion, string> = {
   resumen: "",
   directos: "directos",
   videos: "videos",
-  "kick-directos": "kick-directos",
-  "kick-videos": "kick-videos",
   editor: "corte",
-  biblioteca: "clips-automaticos",
+  biblioteca: "clips-guardados",
 };
 
 const SECCION_POR_HASH: Record<string, Seccion> = {
   directos: "directos",
   videos: "videos",
-  "kick-directos": "kick-directos",
-  "kick-videos": "kick-videos",
   corte: "editor",
-  "clips-automaticos": "biblioteca",
+  "clips-guardados": "biblioteca",
 };
 
 const MENU: { id: Seccion; label: string; icono: string }[] = [
   { id: "resumen", label: "Resumen", icono: "■" },
-  { id: "directos", label: "Directos", icono: "●" },
-  { id: "videos", label: "Videos", icono: "▷" },
-  { id: "kick-directos", label: "Kick · Directos", icono: "●" },
-  { id: "kick-videos", label: "Kick · Videos", icono: "▷" },
-  { id: "editor", label: "Editor", icono: "✂" },
+  { id: "directos", label: "En Vivos (Lives)", icono: "●" },
+  { id: "videos", label: "Videos Normales", icono: "▷" },
+  { id: "editor", label: "Editor y Cortes", icono: "✂" },
   { id: "biblioteca", label: "Biblioteca", icono: "▤" },
 ];
 
 const NOMBRE_SECCION: Record<Seccion, string> = {
   resumen: "Resumen",
-  directos: "Directos",
-  videos: "Videos",
-  "kick-directos": "Kick · Directos",
-  "kick-videos": "Kick · Videos",
+  directos: "En Vivos",
+  videos: "Videos Normales",
   editor: "Editor",
   biblioteca: "Biblioteca",
 };
@@ -82,9 +72,10 @@ const leerTiempo = (txt: string): number => {
 
 const detectarPlataforma = (url: string): string | null => {
   const u = url.toLowerCase();
-  if (u.includes("youtube.com") || u.includes("youtu.be")) return "YouTube";
+  if (u.includes("youtube.com") || u.includes("youtu.be")) return "YouTube / Shorts";
   if (u.includes("tiktok.com")) return "TikTok";
-  if (u.includes("instagram.com")) return "Instagram";
+  if (u.includes("instagram.com")) return "Instagram Reels";
+  if (u.includes("spotify.com")) return "Spotify";
   if (u.includes("facebook.com") || u.includes("fb.watch")) return "Facebook";
   if (u.includes("kick.com")) return "Kick";
   if (u.includes("twitch.tv")) return "Twitch";
@@ -128,10 +119,10 @@ const CAMPO =
   "w-full rounded-lg border border-[#2b1e23] bg-[#0b0709] px-3.5 py-3 text-sm text-white placeholder:text-[#6f6267] focus:border-[#f43f5e]/60 focus:outline-none";
 
 const BTN_ROSA =
-  "inline-flex items-center justify-center gap-2 rounded-lg bg-[#f43f5e] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#e11d48] disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-lg bg-[#f43f5e] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#e11d48]";
 
 const BTN_GRIS =
-  "inline-flex items-center justify-center gap-2 rounded-lg border border-[#2b1e23] bg-[#150e12] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#21161b] disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex items-center justify-center gap-2 rounded-lg border border-[#2b1e23] bg-[#150e12] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#21161b]";
 
 const CARD = "rounded-2xl border border-[#2a1c22] bg-[#150d11]/90";
 
@@ -140,9 +131,9 @@ export default function EditorStudioPage() {
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   const [urlInput, setUrlInput] = useState("");
-  const [cantidadClips, setCantidadClips] = useState("auto");
   const [estadoProceso, setEstadoProceso] = useState("En espera");
 
+  // Editor y Marca de Agua
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [duracion, setDuracion] = useState(0);
@@ -152,8 +143,8 @@ export default function EditorStudioPage() {
   const [aspecto, setAspecto] = useState("9:16");
   const [calidad, setCalidad] = useState("720p");
   const [encuadre, setEncuadre] = useState<"Rellenar" | "Video completo">("Rellenar");
-  const [modoGaming, setModoGaming] = useState(false);
-  const [subtitulos, setSubtitulos] = useState("Sin subtítulos");
+  const [textoMarcaAgua, setTextoMarcaAgua] = useState("@TuMarca");
+  
   const [procesando, setProcesando] = useState(false);
   const [progreso, setProgreso] = useState(0);
   const [mensaje, setMensaje] = useState("");
@@ -280,29 +271,14 @@ export default function EditorStudioPage() {
   };
 
   const validarTramo = (): string | null => {
-    if (!videoFile) return "Primero sube un video o importa tu grabación.";
+    if (!videoFile) return "Primero sube un video o selecciona un archivo.";
     if (Number.isNaN(leerTiempo(inicioTxt)) || Number.isNaN(leerTiempo(finTxt)))
-      return "Escribe los tiempos como mm:ss.";
+      return "Escribe los tiempos en formato mm:ss.";
     if (duracionClip < 1) return "El fin debe ser mayor que el inicio.";
     return null;
   };
 
-  const guardarTramo = () => {
-    const error = validarTramo();
-    if (error) return setMensaje(error);
-    setClips((prev) => [
-      {
-        id: Date.now().toString(),
-        titulo: `Tramo · ${videoFile!.name.slice(0, 24)}`,
-        inicio: formatearTiempo(inicioSeg),
-        fin: formatearTiempo(finSeg),
-        formato: aspecto,
-      },
-      ...prev,
-    ]);
-    setMensaje("Tramo guardado en la biblioteca.");
-  };
-
+  // Generar MP4 aplicando redimensionamiento y Marca de Agua opcional
   const generarMP4 = async (descargar: boolean) => {
     const error = validarTramo();
     if (error) return setMensaje(error);
@@ -310,19 +286,26 @@ export default function EditorStudioPage() {
     try {
       setProcesando(true);
       setProgreso(0);
-      setMensaje("Preparando motor de video…");
+      setMensaje("Cargando motor de video...");
       await cargarFFmpeg();
 
       const ffmpeg = ffmpegRef.current;
       const { fetchFile } = utilRef.current;
       const [w, h] = DIMENSIONES[aspecto][calidad];
 
-      const filtro =
+      let filtro =
         encuadre === "Rellenar"
           ? `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},setsar=1`
           : `scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
 
-      setMensaje("Recortando clip en tu dispositivo…");
+      // Agregar marca de agua si el usuario escribió texto
+      if (textoMarcaAgua.trim()) {
+        const textoEscapado = textoMarcaAgua.replace(/:/g, '\\:').replace(/'/g, '');
+        // Coloca la marca de agua abajo a la derecha con estilo profesional
+        filtro += `,drawtext=text='${textoEscapado}':fontcolor=white:fontsize=24:x=w-tw-30:y=h-th-30:box=1:boxcolor=black@0.5:boxborderw=8`;
+      }
+
+      setMensaje("Procesando clip y aplicando marca de agua...");
       await ffmpeg.writeFile("entrada.mp4", await fetchFile(videoFile));
 
       await ffmpeg.exec([
@@ -348,14 +331,14 @@ export default function EditorStudioPage() {
       if (descargar) {
         const a = document.createElement("a");
         a.href = url;
-        a.download = `clip-${Date.now()}.mp4`;
+        a.download = `clip-marca-${Date.now()}.mp4`;
         a.click();
       }
 
       setClips((prev) => [
         {
           id: Date.now().toString(),
-          titulo: `Clip · ${formatearTiempo(inicioSeg)} a ${formatearTiempo(finSeg)}`,
+          titulo: `Clip con Marca · ${formatearTiempo(inicioSeg)} a ${formatearTiempo(finSeg)}`,
           inicio: formatearTiempo(inicioSeg),
           fin: formatearTiempo(finSeg),
           formato: aspecto,
@@ -364,62 +347,27 @@ export default function EditorStudioPage() {
         ...prev,
       ]);
       setProgreso(100);
-      setMensaje(descargar ? "¡Clip descargado con éxito!" : "Clip listo.");
+      setMensaje(descargar ? "¡Clip descargado con éxito con tu marca de agua!" : "Clip generado correctamente.");
     } catch (err) {
       console.error(err);
-      setMensaje("Error procesando el video. Prueba con un archivo más corto.");
+      setMensaje("Error al procesar el video. Intenta con un archivo más corto.");
     } finally {
       setProcesando(false);
     }
   };
 
-  const iniciarAutomatico = () => {
+  const enviarAWhatsApp = () => {
     if (!urlInput.trim()) {
       setEstadoProceso("Pega primero un enlace válido");
       return;
     }
-    const plataforma = detectarPlataforma(urlInput);
-    if (!plataforma) {
-      setEstadoProceso("Enlace no reconocido");
-      return;
-    }
-    // Redirección inteligente a WhatsApp para pedidos en vivo o carga del editor
-    setEstadoProceso(`Enlace de ${plataforma} listo. Redirigiendo para procesar...`);
-    const mensajeWp = `Hola, quiero extraer clips automáticos de este ${plataforma}: ${urlInput}`;
-    window.open(`https://wa.me/18290000000?text=${encodeURIComponent(mensajeWp)}`, "_blank");
+    const plataforma = detectarPlataforma(urlInput) || "Video / En Vivo";
+    const mensajeWp = `Hola, quiero procesar clips automáticos de este enlace de ${plataforma}: ${urlInput}`;
+    window.open(`https://wa.me/18097911746?text=${encodeURIComponent(mensajeWp)}`, "_blank");
   };
 
   const guardados = clips.filter((c) => !c.papelera);
-  const enPapelera = clips.filter((c) => c.papelera);
-  const listaBiblioteca = tabBiblioteca === "guardados" ? guardados : enPapelera;
-
-  const plataformaDetectada = detectarPlataforma(urlInput);
   const [anchoPrev, altoPrev] = aspecto.split(":").map(Number);
-
-  const selectorCantidad = (
-    <select value={cantidadClips} onChange={(e) => setCantidadClips(e.target.value)} className={CAMPO}>
-      <option value="auto">Automática · según los momentos encontrados</option>
-      <option value="2">2 clips (Plan Gratis)</option>
-      <option value="25">25 clips (Plan Pro)</option>
-    </select>
-  );
-
-  const campoEnlace = (etiqueta: string, placeholder: string) => (
-    <div>
-      <label className="mb-1.5 block text-xs font-bold text-white">{etiqueta}</label>
-      <input
-        type="url"
-        inputMode="url"
-        value={urlInput}
-        onChange={(e) => setUrlInput(e.target.value)}
-        placeholder={placeholder}
-        className={CAMPO}
-      />
-      {plataformaDetectada && (
-        <p className="mt-1.5 text-[11px] text-[#f43f5e]">Plataforma detectada: {plataformaDetectada} ✓</p>
-      )}
-    </div>
-  );
 
   const navegacion = (
     <nav className="space-y-1">
@@ -475,21 +423,21 @@ export default function EditorStudioPage() {
 
             {seccion === "resumen" && (
               <div>
-                <Eyebrow>Tu espacio de trabajo</Eyebrow>
-                <Titulo>Estudio de <span className="text-[#f43f5e]">clips.</span></Titulo>
-                <p className="mb-6 text-sm text-[#c7bcc0]">Pega tus enlaces de en vivo o sube tus grabaciones para generar contenido viral al instante.</p>
+                <Eyebrow>Plataforma para Streaming y Videos</Eyebrow>
+                <Titulo>Estudio de <span className="text-[#f43f5e]">Clips y Streaming.</span></Titulo>
+                <p className="mb-6 text-sm text-[#c7bcc0]">Ideal para TikTok, YouTube, Spotify, Shorts y videos normales con marca de agua personalizada.</p>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <button onClick={() => irA("directos")} className={`${CARD} p-5 text-left transition hover:border-[#f43f5e]/50`}>
-                    <h3 className="mb-1 text-lg font-extrabold text-white">Clips de Directos (Live)</h3>
-                    <p className="text-xs text-[#9e9196]">Procesa transmisiones en vivo de YouTube o plataformas compatibles.</p>
+                    <h3 className="mb-1 text-lg font-extrabold text-white">En Vivos (Lives)</h3>
+                    <p className="text-xs text-[#9e9196]">Procesa directos y transmisiones para recortar lo mejor.</p>
+                  </button>
+                  <button onClick={() => irA("videos")} className={`${CARD} p-5 text-left transition hover:border-[#f43f5e]/50`}>
+                    <h3 className="mb-1 text-lg font-extrabold text-white">Videos Normales</h3>
+                    <p className="text-xs text-[#9e9196]">Extrae clips para TikTok, YouTube y Spotify.</p>
                   </button>
                   <button onClick={() => irA("editor")} className={`${CARD} p-5 text-left transition hover:border-[#f43f5e]/50`}>
-                    <h3 className="mb-1 text-lg font-extrabold text-white">Editor Manual</h3>
-                    <p className="text-xs text-[#9e9196]">Sube un archivo de video y recorta tus mejores momentos.</p>
-                  </button>
-                  <button onClick={() => irA("biblioteca")} className={`${CARD} p-5 text-left transition hover:border-[#f43f5e]/50`}>
-                    <h3 className="mb-1 text-lg font-extrabold text-white">Mi Biblioteca</h3>
-                    <p className="text-xs text-[#9e9196]">Descarga tus clips listos en formato MP4.</p>
+                    <h3 className="mb-1 text-lg font-extrabold text-white">Editor y Marca de Agua</h3>
+                    <p className="text-xs text-[#9e9196]">Agrega tu logo o nombre y recorta el video al instante.</p>
                   </button>
                 </div>
               </div>
@@ -497,17 +445,25 @@ export default function EditorStudioPage() {
 
             {(seccion === "directos" || seccion === "videos") && (
               <div className={`${CARD} p-6 sm:p-8 space-y-5`}>
-                <Eyebrow>Extracción de enlaces</Eyebrow>
-                <Titulo>Saca clips de tus Lives y Videos</Titulo>
-                <p className="text-sm text-[#c7bcc0]">Pega el link de tu transmisión. Al iniciar, el sistema enviará los datos a tu WhatsApp o procesará el corte.</p>
-                {campoEnlace("Enlace del en vivo o video", "https://www.youtube.com/watch?v=...")}
+                <Eyebrow>Enlaces de Streaming y Redes</Eyebrow>
+                <Titulo>{seccion === "directos" ? "Procesar En Vivos / Lives" : "Procesar Videos Normales"}</Titulo>
+                <p className="text-sm text-[#c7bcc0]">Pega el enlace de YouTube, TikTok, Spotify o plataformas compatibles para enviarlo a tu WhatsApp y gestionarlo.</p>
                 <div>
-                  <label className="mb-1.5 block text-xs font-bold text-white">Cantidad de clips</label>
-                  {selectorCantidad}
+                  <label className="mb-1.5 block text-xs font-bold text-white">Enlace del video o streaming</label>
+                  <input
+                    type="url"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    className={CAMPO}
+                  />
+                  {detectarPlataforma(urlInput) && (
+                    <p className="mt-1.5 text-[11px] text-[#f43f5e]">Plataforma detectada: {detectarPlataforma(urlInput)} ✓</p>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-3 pt-2">
-                  <button onClick={iniciarAutomatico} className={BTN_ROSA}>💬 Enviar enlace y procesar</button>
-                  <button onClick={abrirSelector} className={BTN_GRIS}>↑ O subir video desde el equipo</button>
+                  <button onClick={enviarAWhatsApp} className={BTN_ROSA}>💬 Enviar a WhatsApp para procesar</button>
+                  <button onClick={abrirSelector} className={BTN_GRIS}>↑ Subir video local desde mi equipo</button>
                 </div>
                 <p className="text-xs text-[#f43f5e]">{estadoProceso}</p>
               </div>
@@ -537,25 +493,36 @@ export default function EditorStudioPage() {
                   <div className="flex gap-2">
                     <button onClick={probarCorte} className={BTN_GRIS}>▷ Probar</button>
                     <button onClick={() => generarMP4(true)} disabled={procesando} className={BTN_ROSA}>
-                      {procesando ? `Generando ${progreso}%` : "↓ Descargar MP4"}
+                      {procesando ? `Generando ${progreso}%` : "↓ Descargar MP4 con Marca"}
                     </button>
                   </div>
                   {mensaje && <p className="text-xs text-[#f43f5e] mt-2">{mensaje}</p>}
                 </section>
 
                 <section className={`${CARD} p-4 sm:p-5`}>
-                  <h2 className="text-xl font-extrabold text-white mb-3">Ajustes Verticales (9:16)</h2>
+                  <h2 className="text-xl font-extrabold text-white mb-3">Marca de Agua y Formato</h2>
                   <div className="space-y-4">
                     <div>
-                      <label className="text-xs text-white">Formato</label>
+                      <label className="mb-1 block text-xs font-bold text-white">Texto de tu Marca de Agua</label>
+                      <input
+                        type="text"
+                        value={textoMarcaAgua}
+                        onChange={(e) => setTextoMarcaAgua(e.target.value)}
+                        placeholder="@TuCanal o TuNombre"
+                        className={CAMPO}
+                      />
+                      <p className="mt-1 text-[10px] text-[#9e9196]">Aparecerá incrustada en la esquina inferior derecha del video.</p>
+                    </div>
+                    <div>
+                      <label className="text-xs text-white">Relación de Aspecto (TikTok, Shorts, Spotify)</label>
                       <select value={aspecto} onChange={(e) => setAspecto(e.target.value)} className={CAMPO}>
-                        <option value="9:16">9:16 · Vertical (TikTok / Shorts)</option>
+                        <option value="9:16">9:16 · Vertical (TikTok, Shorts, Reels)</option>
                         <option value="1:1">1:1 · Cuadrado</option>
-                        <option value="16:9">16:9 · Horizontal</option>
+                        <option value="16:9">16:9 · Horizontal (YouTube / Videos normales)</option>
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs text-white">Calidad</label>
+                      <label className="text-xs text-white">Calidad de Salida</label>
                       <select value={calidad} onChange={(e) => setCalidad(e.target.value)} className={CAMPO}>
                         <option value="720p">720p (Rápido)</option>
                         <option value="1080p">1080p (Alta definición)</option>
@@ -570,7 +537,7 @@ export default function EditorStudioPage() {
               <div>
                 <Titulo>Biblioteca de Clips</Titulo>
                 {guardados.length === 0 ? (
-                  <p className="text-xs text-[#9e9196] mt-4">No hay clips guardados todavía. Usa el editor para exportar tu primer MP4.</p>
+                  <p className="text-xs text-[#9e9196] mt-4">No hay clips guardados todavía. Usa el editor para generar tu primer video con marca de agua.</p>
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
                     {guardados.map((c) => (
@@ -578,7 +545,7 @@ export default function EditorStudioPage() {
                         {c.url && <video src={c.url} controls className="mb-3 aspect-video w-full rounded bg-black object-contain" />}
                         <h3 className="text-sm font-bold text-white">{c.titulo}</h3>
                         <p className="text-xs text-[#9e9196] mb-3">{c.inicio} a {c.fin} · {c.formato}</p>
-                        {c.url && <a href={c.url} download="clip.mp4" className="inline-block bg-[#f43f5e] px-3 py-2 text-xs font-bold text-white rounded">↓ Descargar MP4</a>}
+                        {c.url && <a href={c.url} download="clip-marca.mp4" className="inline-block bg-[#f43f5e] px-3 py-2 text-xs font-bold text-white rounded">↓ Descargar MP4</a>}
                       </div>
                     ))}
                   </div>
