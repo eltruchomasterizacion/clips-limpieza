@@ -133,6 +133,7 @@ export default function EditorStudioPage() {
   const [estadoProceso, setEstadoProceso] = useState("En espera");
 
   const [licenciaActiva, setLicenciaActiva] = useState(false);
+  const [planActual, setPlanActual] = useState("");
   const [codigoInput, setCodigoInput] = useState("");
   const [mensajeLicencia, setMensajeLicencia] = useState("");
 
@@ -146,7 +147,7 @@ export default function EditorStudioPage() {
   const [calidad, setCalidad] = useState("720p");
   const [encuadre, setEncuadre] = useState<"Rellenar" | "Video completo">("Rellenar");
   const [textoMarcaAgua, setTextoMarcaAgua] = useState("@TuMarca");
-  
+
   const [procesando, setProcesando] = useState(false);
   const [progreso, setProgreso] = useState(0);
   const [mensaje, setMensaje] = useState("");
@@ -167,10 +168,14 @@ export default function EditorStudioPage() {
   const duracionClip = Math.max(0, finSeg - inicioSeg);
 
   useEffect(() => {
-    const licenciaGuardada = localStorage.getItem("trucho_licencia_activa");
-    if (licenciaGuardada === "true") {
-      setLicenciaActiva(true);
-    }
+    // La licencia se verifica en el servidor (no se guarda nada en el navegador que se pueda falsificar)
+    fetch("/api/licencia")
+      .then((r) => r.json())
+      .then((d) => {
+        setLicenciaActiva(!!d.activa);
+        setPlanActual(d.plan ?? "");
+      })
+      .catch(() => {});
 
     const leer = () => {
       const h = window.location.hash.replace("#", "");
@@ -181,19 +186,26 @@ export default function EditorStudioPage() {
     return () => window.removeEventListener("hashchange", leer);
   }, []);
 
-  const activarCodigoUnico = (e: React.FormEvent) => {
+  const activarCodigoUnico = async (e: React.FormEvent) => {
     e.preventDefault();
-    const codigoLimpio = codigoInput.trim();
-    const LLAVE_MAESTRA = "ELTRUCHO-ADMIN-MASTER";
-    const codigosValidosClientes = ["TRUCHO-PRO-777", "VIP-LIVES-2026", "CLIENTE-PREMIUM-1", "CLIP-MASTER-99"];
-
-    if (codigoLimpio === LLAVE_MAESTRA || codigosValidosClientes.includes(codigoLimpio)) {
-      localStorage.setItem("trucho_licencia_activa", "true");
-      setLicenciaActiva(true);
-      setMensajeLicencia("¡Licencia activada con éxito!");
-      setTimeout(() => irA("editor"), 1000);
-    } else {
-      setMensajeLicencia("Código incorrecto o inválido.");
+    setMensajeLicencia("Verificando...");
+    try {
+      const r = await fetch("/api/licencia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "canjear", codigo: codigoInput }),
+      });
+      const d = await r.json();
+      if (r.ok && d.activa) {
+        setLicenciaActiva(true);
+        setPlanActual(d.plan);
+        setMensajeLicencia("¡Licencia activada con éxito!");
+        setTimeout(() => irA("editor"), 1000);
+      } else {
+        setMensajeLicencia(d.error ?? "Código incorrecto o inválido.");
+      }
+    } catch {
+      setMensajeLicencia("No se pudo conectar. Intenta de nuevo.");
     }
   };
 
@@ -311,7 +323,7 @@ export default function EditorStudioPage() {
           : `scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
 
       if (textoMarcaAgua.trim()) {
-        const textoEscapado = textoMarcaAgua.replace(/:/g, '\\:').replace(/'/g, '');
+        const textoEscapado = textoMarcaAgua.replace(/:/g, "\\:").replace(/'/g, "");
         filtro += `,drawtext=text='${textoEscapado}':fontcolor=white:fontsize=24:x=w-tw-30:y=h-th-30:box=1:boxcolor=black@0.5:boxborderw=8`;
       }
 
@@ -357,6 +369,14 @@ export default function EditorStudioPage() {
         ...prev,
       ]);
       setProgreso(100);
+
+      // Avisa al panel del dueño que este cliente generó un clip
+      fetch("/api/licencia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "actividad", detalle: `Clip ${aspecto} ${calidad}` }),
+      }).catch(() => {});
+
       setMensaje(descargar ? "¡Descargado con éxito!" : "Clip generado correctamente.");
     } catch (err) {
       console.error(err);
@@ -418,7 +438,7 @@ export default function EditorStudioPage() {
         <div className="border-t border-[#1e1519] px-1 pt-3">
           <div className="text-[10px] text-[#9e9196] mb-0.5">Estado:</div>
           <div className={`text-xs font-bold ${licenciaActiva ? "text-emerald-400" : "text-amber-400"}`}>
-            {licenciaActiva ? "● Activa (Master)" : "○ Sin Licencia"}
+            {licenciaActiva ? `● Activa (${planActual || "plan"})` : "○ Sin Licencia"}
           </div>
         </div>
       </aside>
@@ -449,7 +469,7 @@ export default function EditorStudioPage() {
                 <Eyebrow>Activación</Eyebrow>
                 <Titulo>Llave o Código</Titulo>
                 <p className="text-xs text-[#c7bcc0]">
-                  Introduce tu llave maestra de administrador o el código de tu plan mensual.
+                  Introduce el código de tu plan. Es personal y solo funciona en un dispositivo.
                 </p>
                 <form onSubmit={activarCodigoUnico} className="space-y-3">
                   <div>
@@ -457,8 +477,9 @@ export default function EditorStudioPage() {
                       type="text"
                       value={codigoInput}
                       onChange={(e) => setCodigoInput(e.target.value)}
-                      placeholder="Ej. ELTRUCHO-ADMIN-MASTER"
+                      placeholder="Ej. CLIP-XXXX-XXXX-XXXX"
                       className={CAMPO}
+                      autoComplete="off"
                     />
                   </div>
                   <button type="submit" className={`${BTN_ROSA} w-full`}>
@@ -476,7 +497,7 @@ export default function EditorStudioPage() {
                   <Titulo>Estudio de <span className="text-[#f43f5e]">Clips.</span></Titulo>
                   <p className="text-xs sm:text-sm text-[#c7bcc0]">TikTok, YouTube, Shorts y Spotify con tu propia marca de agua.</p>
                 </div>
-                
+
                 {!licenciaActiva && (
                   <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-300 flex items-center justify-between">
                     <span>⚠️ Licencia no activa en este navegador.</span>
