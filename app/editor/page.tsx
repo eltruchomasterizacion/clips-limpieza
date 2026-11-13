@@ -2,8 +2,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile } from "@ffmpeg/util";
 
 type Seccion =
   | "resumen"
@@ -47,11 +45,14 @@ export default function EditorStudioPage() {
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const ffmpegRef = useRef<FFmpeg | null>(null);
+  
+  // Usamos "any" y cargamos dinámicamente para evitar que Vercel rompa la página
+  const ffmpegRef = useRef<any>(null);
 
   useEffect(() => {
     const loadFFmpeg = async () => {
       try {
+        const { FFmpeg } = await import("@ffmpeg/ffmpeg");
         const ffmpeg = new FFmpeg();
         await ffmpeg.load();
         ffmpegRef.current = ffmpeg;
@@ -122,6 +123,9 @@ export default function EditorStudioPage() {
     try {
       setProcesandoMp4(true);
       setProgresoTexto("Procesando clip en tu computadora (sin gastar servidor)...");
+
+      // Carga de utilidad segura
+      const { fetchFile } = await import("@ffmpeg/util");
 
       await ffmpeg.writeFile("entrada.mp4", await fetchFile(videoFile));
 
