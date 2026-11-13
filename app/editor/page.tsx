@@ -192,10 +192,9 @@ export default function EditorStudioPage() {
     e.preventDefault();
     const codigoLimpio = codigoInput.trim();
 
-    // TU LLAVE MAESTRA DE PROPIETARIO
+    // LLAVE MAESTRA DEL PROPIETARIO (TÚ)
     const LLAVE_MAESTRA = "ELTRUCHO-ADMIN-MASTER";
 
-    // Códigos válidos de prueba para tus clientes
     const codigosValidosClientes = [
       "TRUCHO-PRO-777",
       "VIP-LIVES-2026",
@@ -206,14 +205,12 @@ export default function EditorStudioPage() {
     if (codigoLimpio === LLAVE_MAESTRA || codigosValidosClientes.includes(codigoLimpio)) {
       localStorage.setItem("trucho_licencia_activa", "true");
       setLicenciaActiva(true);
-      setMensajeLicencia("¡Licencia activada con éxito! Redirigiendo al editor...");
-      
-      // Salto automático a la sección del editor tras activar
+      setMensajeLicencia("¡Licencia activada con éxito! Acceso libre concedido.");
       setTimeout(() => {
         irA("editor");
       }, 1200);
     } else {
-      setMensajeLicencia("Código incorrecto o inválido. Verifica en WhatsApp.");
+      setMensajeLicencia("Código incorrecto o inválido. Solicítalo por WhatsApp.");
     }
   };
 
@@ -262,10 +259,6 @@ export default function EditorStudioPage() {
   }, []);
 
   const abrirSelector = () => {
-    if (!licenciaActiva) {
-      irA("activar");
-      return;
-    }
     fileInputRef.current?.click();
   };
 
@@ -318,10 +311,6 @@ export default function EditorStudioPage() {
   };
 
   const generarMP4 = async (descargar: boolean) => {
-    if (!licenciaActiva) {
-      irA("activar");
-      return;
-    }
     const error = validarTramo();
     if (error) return setMensaje(error);
 
@@ -396,14 +385,20 @@ export default function EditorStudioPage() {
     }
   };
 
-  const enviarAWhatsApp = () => {
+  const accionEnlace = () => {
     if (!urlInput.trim()) {
       setEstadoProceso("Pega primero un enlace válido");
       return;
     }
-    const plataforma = detectarPlataforma(urlInput) || "Video / En Vivo";
-    const mensajeWp = `Hola, quiero procesar clips automáticos de este enlace de ${plataforma}: ${urlInput}`;
-    window.open(`https://wa.me/18097911746?text=${encodeURIComponent(mensajeWp)}`, "_blank");
+    // Si la licencia está activa, entra directo a cortar; si no, manda al WhatsApp
+    if (licenciaActiva) {
+      setEstadoProceso("¡Enlace verificado! Sube tu video o usa el editor libremente.");
+      irA("editor");
+    } else {
+      const plataforma = detectarPlataforma(urlInput) || "Video / En Vivo";
+      const mensajeWp = `Hola, quiero procesar clips automáticos de este enlace de ${plataforma}: ${urlInput}`;
+      window.open(`https://wa.me/18097911746?text=${encodeURIComponent(mensajeWp)}`, "_blank");
+    }
   };
 
   const guardados = clips.filter((c) => !c.papelera);
@@ -443,7 +438,7 @@ export default function EditorStudioPage() {
         <div className="border-t border-[#1e1519] px-2 pt-4">
           <div className="text-[11px] text-[#9e9196] mb-1">Estado de cuenta:</div>
           <div className={`text-xs font-bold ${licenciaActiva ? "text-emerald-400" : "text-amber-400"}`}>
-            {licenciaActiva ? "● Licencia Activa" : "○ Sin Licencia"}
+            {licenciaActiva ? "● Licencia Activa (Master)" : "○ Sin Licencia"}
           </div>
         </div>
       </aside>
@@ -468,21 +463,21 @@ export default function EditorStudioPage() {
                 <Eyebrow>Activación de Cuenta</Eyebrow>
                 <Titulo>Introduce tu Código</Titulo>
                 <p className="text-sm text-[#c7bcc0]">
-                  Escribe el código único que recibiste en tu WhatsApp al realizar el pago para liberar el acceso completo a la plataforma.
+                  Si eres el master, introduce tu llave maestra. Si eres cliente con plan, introduce el código proporcionado tras tu pago.
                 </p>
                 <form onSubmit={activarCodigoUnico} className="space-y-4">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-white">Código de Licencia</label>
+                    <label className="mb-1.5 block text-xs font-bold text-white">Código de Licencia o Llave Maestra</label>
                     <input
                       type="text"
                       value={codigoInput}
                       onChange={(e) => setCodigoInput(e.target.value)}
-                      placeholder="Ej. TRUCHO-PRO-777 o tu llave maestra"
+                      placeholder="Ej. ELTRUCHO-ADMIN-MASTER"
                       className={CAMPO}
                     />
                   </div>
                   <button type="submit" className={`${BTN_ROSA} w-full`}>
-                    🔓 Activar Plan Ahora
+                    🔓 Activar Acceso Total
                   </button>
                 </form>
                 {mensajeLicencia && (
@@ -499,8 +494,8 @@ export default function EditorStudioPage() {
                 
                 {!licenciaActiva && (
                   <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-300 flex items-center justify-between">
-                    <span>⚠️ Tienes acceso de prueba. Activa tu licencia para usar todas las funciones del editor.</span>
-                    <button onClick={() => irA("activar")} className="underline font-bold">Activar aquí</button>
+                    <span>⚠️ No has activado tu licencia o llave maestra en este navegador.</span>
+                    <button onClick={() => irA("activar")} className="underline font-bold">Activar ahora</button>
                   </div>
                 )}
 
@@ -524,115 +519,4 @@ export default function EditorStudioPage() {
             {(seccion === "directos" || seccion === "videos") && (
               <div className={`${CARD} p-6 sm:p-8 space-y-5`}>
                 <Eyebrow>Enlaces de Streaming y Redes</Eyebrow>
-                <Titulo>{seccion === "directos" ? "Procesar En Vivos / Lives" : "Procesar Videos Normales"}</Titulo>
-                <p className="text-sm text-[#c7bcc0]">Pega el enlace de YouTube, TikTok, Spotify o plataformas compatibles para enviarlo a tu WhatsApp y gestionarlo.</p>
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-white">Enlace del video o streaming</label>
-                  <input
-                    type="url"
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    className={CAMPO}
-                  />
-                  {detectarPlataforma(urlInput) && (
-                    <p className="mt-1.5 text-[11px] text-[#f43f5e]">Plataforma detectada: {detectarPlataforma(urlInput)} ✓</p>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <button onClick={enviarAWhatsApp} className={BTN_ROSA}>💬 Enviar a WhatsApp para procesar</button>
-                  <button onClick={abrirSelector} className={BTN_GRIS}>↑ Subir video local desde mi equipo</button>
-                </div>
-                <p className="text-xs text-[#f43f5e]">{estadoProceso}</p>
-              </div>
-            )}
-
-            {seccion === "editor" && (
-              <div className="grid gap-6 lg:grid-cols-2">
-                <section className={`${CARD} p-4 sm:p-5`}>
-                  <h2 className="text-xl font-extrabold text-white mb-3">Editor de Recorte</h2>
-                  <div className="mb-4 flex aspect-video items-center justify-center overflow-hidden rounded-xl bg-black">
-                    {videoSrc ? (
-                      <video ref={videoRef} src={videoSrc} controls playsInline onLoadedMetadata={alCargarMetadatos} onTimeUpdate={alActualizarTiempo} className="h-full w-full object-contain" />
-                    ) : (
-                      <button onClick={abrirSelector} className={BTN_ROSA}>↑ Seleccionar archivo de video</button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div>
-                      <label className="text-xs text-white">Inicio (mm:ss)</label>
-                      <input value={inicioTxt} onChange={(e) => setInicioTxt(e.target.value)} className={CAMPO} />
-                    </div>
-                    <div>
-                      <label className="text-xs text-white">Fin (mm:ss)</label>
-                      <input value={finTxt} onChange={(e) => setFinTxt(e.target.value)} className={CAMPO} />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={probarCorte} className={BTN_GRIS}>▷ Probar</button>
-                    <button onClick={() => generarMP4(true)} disabled={procesando} className={BTN_ROSA}>
-                      {procesando ? `Generando ${progreso}%` : "↓ Descargar MP4 con Marca"}
-                    </button>
-                  </div>
-                  {mensaje && <p className="text-xs text-[#f43f5e] mt-2">{mensaje}</p>}
-                </section>
-
-                <section className={`${CARD} p-4 sm:p-5`}>
-                  <h2 className="text-xl font-extrabold text-white mb-3">Marca de Agua y Formato</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="mb-1 block text-xs font-bold text-white">Texto de tu Marca de Agua</label>
-                      <input
-                        type="text"
-                        value={textoMarcaAgua}
-                        onChange={(e) => setTextoMarcaAgua(e.target.value)}
-                        placeholder="@TuCanal o TuNombre"
-                        className={CAMPO}
-                      />
-                      <p className="mt-1 text-[10px] text-[#9e9196]">Aparecerá incrustada en la esquina inferior derecha del video.</p>
-                    </div>
-                    <div>
-                      <label className="text-xs text-white">Relación de Aspecto (TikTok, Shorts, Spotify)</label>
-                      <select value={aspecto} onChange={(e) => setAspecto(e.target.value)} className={CAMPO}>
-                        <option value="9:16">9:16 · Vertical (TikTok, Shorts, Reels)</option>
-                        <option value="1:1">1:1 · Cuadrado</option>
-                        <option value="16:9">16:9 · Horizontal (YouTube / Videos normales)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs text-white">Calidad de Salida</label>
-                      <select value={calidad} onChange={(e) => setCalidad(e.target.value)} className={CAMPO}>
-                        <option value="720p">720p (Rápido)</option>
-                        <option value="1080p">1080p (Alta definición)</option>
-                      </select>
-                    </div>
-                  </div>
-                </section>
-              </div>
-            )}
-
-            {seccion === "biblioteca" && (
-              <div>
-                <Titulo>Biblioteca de Clips</Titulo>
-                {guardados.length === 0 ? (
-                  <p className="text-xs text-[#9e9196] mt-4">No hay clips guardados todavía. Usa el editor para generar tu primer video con marca de agua.</p>
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-4">
-                    {guardados.map((c) => (
-                      <div key={c.id} className={`${CARD} p-4`}>
-                        {c.url && <video src={c.url} controls className="mb-3 aspect-video w-full rounded bg-black object-contain" />}
-                        <h3 className="text-sm font-bold text-white">{c.titulo}</h3>
-                        <p className="text-xs text-[#9e9196] mb-3">{c.inicio} a {c.fin} · {c.formato}</p>
-                        {c.url && <a href={c.url} download="clip-marca.mp4" className="inline-block bg-[#f43f5e] px-3 py-2 text-xs font-bold text-white rounded">↓ Descargar MP4</a>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-}
+                <Titulo>{seccion === "directos"
