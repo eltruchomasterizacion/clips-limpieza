@@ -3,13 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-type Seccion =
-  | "resumen"
-  | "directos"
-  | "videos"
-  | "editor"
-  | "biblioteca"
-  | "activar";
+type Seccion = "resumen" | "directos" | "videos" | "editor" | "biblioteca" | "activar";
 
 interface ClipGuardado {
   id: string;
@@ -40,11 +34,11 @@ const SECCION_POR_HASH: Record<string, Seccion> = {
 
 const MENU: { id: Seccion; label: string; icono: string }[] = [
   { id: "resumen", label: "Resumen", icono: "■" },
-  { id: "directos", label: "En Vivos (Lives)", icono: "●" },
+  { id: "directos", label: "En Vivos", icono: "●" },
   { id: "videos", label: "Videos Normales", icono: "▷" },
   { id: "editor", label: "Editor y Cortes", icono: "✂" },
   { id: "biblioteca", label: "Biblioteca", icono: "▤" },
-  { id: "activar", label: "🔑 Activar Licencia", icono: "★" },
+  { id: "activar", label: "🔑 Licencia", icono: "★" },
 ];
 
 const NOMBRE_SECCION: Record<Seccion, string> = {
@@ -53,7 +47,7 @@ const NOMBRE_SECCION: Record<Seccion, string> = {
   videos: "Videos Normales",
   editor: "Editor",
   biblioteca: "Biblioteca",
-  activar: "Activación de Licencia",
+  activar: "Activación",
 };
 
 const formatearTiempo = (total: number) => {
@@ -79,7 +73,7 @@ const detectarPlataforma = (url: string): string | null => {
   const u = url.toLowerCase();
   if (u.includes("youtube.com") || u.includes("youtu.be")) return "YouTube / Shorts";
   if (u.includes("tiktok.com")) return "TikTok";
-  if (u.includes("instagram.com")) return "Instagram Reels";
+  if (u.includes("instagram.com")) return "Instagram";
   if (u.includes("spotify.com")) return "Spotify";
   if (u.includes("facebook.com") || u.includes("fb.watch")) return "Facebook";
   if (u.includes("kick.com")) return "Kick";
@@ -114,7 +108,7 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 
 function Titulo({ children }: { children: React.ReactNode }) {
   return (
-    <h1 className="mb-2 text-3xl font-black leading-[1.05] tracking-tight text-white sm:text-4xl lg:text-5xl">
+    <h1 className="mb-2 text-3xl font-black leading-[1.05] tracking-tight text-white sm:text-4xl">
       {children}
     </h1>
   );
@@ -196,7 +190,7 @@ export default function EditorStudioPage() {
     if (codigoLimpio === LLAVE_MAESTRA || codigosValidosClientes.includes(codigoLimpio)) {
       localStorage.setItem("trucho_licencia_activa", "true");
       setLicenciaActiva(true);
-      setMensajeLicencia("¡Licencia activada con éxito! Acceso libre concedido.");
+      setMensajeLicencia("¡Licencia activada con éxito!");
       setTimeout(() => irA("editor"), 1000);
     } else {
       setMensajeLicencia("Código incorrecto o inválido.");
@@ -366,7 +360,7 @@ export default function EditorStudioPage() {
       setMensaje(descargar ? "¡Descargado con éxito!" : "Clip generado correctamente.");
     } catch (err) {
       console.error(err);
-      setMensaje("Error al procesar el video. Intenta con uno más corto.");
+      setMensaje("Error al procesar el video.");
     } finally {
       setProcesando(false);
     }
@@ -492,7 +486,7 @@ export default function EditorStudioPage() {
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <button onClick={() => irA("directos")} className={`${CARD} text-left transition hover:border-[#f43f5e]/50`}>
-                    <h3 className="mb-1 text-base font-extrabold text-white">En Vivos (Lives)</h3>
+                    <h3 className="mb-1 text-base font-extrabold text-white">En Vivos</h3>
                     <p className="text-xs text-[#9e9196]">Procesa transmisiones en directo.</p>
                   </button>
                   <button onClick={() => irA("videos")} className={`${CARD} text-left transition hover:border-[#f43f5e]/50`}>
