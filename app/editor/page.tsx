@@ -138,12 +138,10 @@ export default function EditorStudioPage() {
   const [urlInput, setUrlInput] = useState("");
   const [estadoProceso, setEstadoProceso] = useState("En espera");
 
-  // Estado de Licencia (Código Único)
   const [licenciaActiva, setLicenciaActiva] = useState(false);
   const [codigoInput, setCodigoInput] = useState("");
   const [mensajeLicencia, setMensajeLicencia] = useState("");
 
-  // Editor y Marca de Agua
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [duracion, setDuracion] = useState(0);
@@ -176,7 +174,6 @@ export default function EditorStudioPage() {
   const duracionClip = Math.max(0, finSeg - inicioSeg);
 
   useEffect(() => {
-    // Verificar si ya tiene licencia guardada en este navegador
     const licenciaGuardada = localStorage.getItem("trucho_licencia_activa");
     if (licenciaGuardada === "true") {
       setLicenciaActiva(true);
@@ -195,10 +192,10 @@ export default function EditorStudioPage() {
     e.preventDefault();
     const codigoLimpio = codigoInput.trim();
 
-    // TU LLAVE MAESTRA DE PROPIETARIO (Nadie más la conoce)
+    // TU LLAVE MAESTRA DE PROPIETARIO
     const LLAVE_MAESTRA = "ELTRUCHO-ADMIN-MASTER";
 
-    // Códigos válidos de ejemplo que tú puedes generar y dar por WhatsApp
+    // Códigos válidos de prueba para tus clientes
     const codigosValidosClientes = [
       "TRUCHO-PRO-777",
       "VIP-LIVES-2026",
@@ -206,16 +203,17 @@ export default function EditorStudioPage() {
       "CLIP-MASTER-99"
     ];
 
-    if (codigoLimpio === LLAVE_MAESTRA) {
+    if (codigoLimpio === LLAVE_MAESTRA || codigosValidosClientes.includes(codigoLimpio)) {
       localStorage.setItem("trucho_licencia_activa", "true");
       setLicenciaActiva(true);
-      setMensajeLicencia("¡Llave Maestra de Propietario activada con éxito! Acceso total libre.");
-    } else if (codigosValidosClientes.includes(codigoLimpio)) {
-      localStorage.setItem("trucho_licencia_activa", "true");
-      setLicenciaActiva(true);
-      setMensajeLicencia("¡Licencia activada correctamente! Ya puedes usar todas las funciones.");
+      setMensajeLicencia("¡Licencia activada con éxito! Redirigiendo al editor...");
+      
+      // Salto automático a la sección del editor tras activar
+      setTimeout(() => {
+        irA("editor");
+      }, 1200);
     } else {
-      setMensajeLicencia("Código incorrecto o inválido. Pídelo por WhatsApp si ya realizaste tu pago.");
+      setMensajeLicencia("Código incorrecto o inválido. Verifica en WhatsApp.");
     }
   };
 
@@ -479,7 +477,7 @@ export default function EditorStudioPage() {
                       type="text"
                       value={codigoInput}
                       onChange={(e) => setCodigoInput(e.target.value)}
-                      placeholder="Ej. TRUCHO-PRO-777"
+                      placeholder="Ej. TRUCHO-PRO-777 o tu llave maestra"
                       className={CAMPO}
                     />
                   </div>
@@ -489,13 +487,6 @@ export default function EditorStudioPage() {
                 </form>
                 {mensajeLicencia && (
                   <p className="text-xs font-bold text-[#f43f5e] mt-2">{mensajeLicencia}</p>
-                )}
-                {licenciaActiva && (
-                  <div className="pt-2">
-                    <button onClick={() => irA("editor")} className={`${BTN_GRIS} w-full text-emerald-400 border-emerald-500/40`}>
-                      Ir al Editor de Video →
-                    </button>
-                  </div>
                 )}
               </div>
             )}
