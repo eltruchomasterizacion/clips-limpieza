@@ -8,7 +8,8 @@ type Seccion =
   | "directos"
   | "videos"
   | "editor"
-  | "biblioteca";
+  | "biblioteca"
+  | "activar";
 
 interface ClipGuardado {
   id: string;
@@ -26,6 +27,7 @@ const HASH_POR_SECCION: Record<Seccion, string> = {
   videos: "videos",
   editor: "corte",
   biblioteca: "clips-guardados",
+  activar: "activar-licencia",
 };
 
 const SECCION_POR_HASH: Record<string, Seccion> = {
@@ -33,6 +35,7 @@ const SECCION_POR_HASH: Record<string, Seccion> = {
   videos: "videos",
   corte: "editor",
   "clips-guardados": "biblioteca",
+  "activar-licencia": "activar",
 };
 
 const MENU: { id: Seccion; label: string; icono: string }[] = [
@@ -41,6 +44,7 @@ const MENU: { id: Seccion; label: string; icono: string }[] = [
   { id: "videos", label: "Videos Normales", icono: "▷" },
   { id: "editor", label: "Editor y Cortes", icono: "✂" },
   { id: "biblioteca", label: "Biblioteca", icono: "▤" },
+  { id: "activar", label: "🔑 Activar Licencia", icono: "★" },
 ];
 
 const NOMBRE_SECCION: Record<Seccion, string> = {
@@ -49,6 +53,7 @@ const NOMBRE_SECCION: Record<Seccion, string> = {
   videos: "Videos Normales",
   editor: "Editor",
   biblioteca: "Biblioteca",
+  activar: "Activación de Licencia",
 };
 
 const formatearTiempo = (total: number) => {
@@ -133,6 +138,11 @@ export default function EditorStudioPage() {
   const [urlInput, setUrlInput] = useState("");
   const [estadoProceso, setEstadoProceso] = useState("En espera");
 
+  // Estado de Licencia (Código Único)
+  const [licenciaActiva, setLicenciaActiva] = useState(false);
+  const [codigoInput, setCodigoInput] = useState("");
+  const [mensajeLicencia, setMensajeLicencia] = useState("");
+
   // Editor y Marca de Agua
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -166,6 +176,12 @@ export default function EditorStudioPage() {
   const duracionClip = Math.max(0, finSeg - inicioSeg);
 
   useEffect(() => {
+    // Verificar si ya tiene licencia guardada en este navegador
+    const licenciaGuardada = localStorage.getItem("trucho_licencia_activa");
+    if (licenciaGuardada === "true") {
+      setLicenciaActiva(true);
+    }
+
     const leer = () => {
       const h = window.location.hash.replace("#", "");
       setSeccion(SECCION_POR_HASH[h] ?? "resumen");
@@ -174,6 +190,34 @@ export default function EditorStudioPage() {
     window.addEventListener("hashchange", leer);
     return () => window.removeEventListener("hashchange", leer);
   }, []);
+
+  const activarCodigoUnico = (e: React.FormEvent) => {
+    e.preventDefault();
+    const codigoLimpio = codigoInput.trim();
+
+    // TU LLAVE MAESTRA DE PROPIETARIO (Nadie más la conoce)
+    const LLAVE_MAESTRA = "ELTRUCHO-ADMIN-MASTER";
+
+    // Códigos válidos de ejemplo que tú puedes generar y dar por WhatsApp
+    const codigosValidosClientes = [
+      "TRUCHO-PRO-777",
+      "VIP-LIVES-2026",
+      "CLIENTE-PREMIUM-1",
+      "CLIP-MASTER-99"
+    ];
+
+    if (codigoLimpio === LLAVE_MAESTRA) {
+      localStorage.setItem("trucho_licencia_activa", "true");
+      setLicenciaActiva(true);
+      setMensajeLicencia("¡Llave Maestra de Propietario activada con éxito! Acceso total libre.");
+    } else if (codigosValidosClientes.includes(codigoLimpio)) {
+      localStorage.setItem("trucho_licencia_activa", "true");
+      setLicenciaActiva(true);
+      setMensajeLicencia("¡Licencia activada correctamente! Ya puedes usar todas las funciones.");
+    } else {
+      setMensajeLicencia("Código incorrecto o inválido. Pídelo por WhatsApp si ya realizaste tu pago.");
+    }
+  };
 
   const irA = useCallback((s: Seccion) => {
     setSeccion(s);
@@ -219,7 +263,13 @@ export default function EditorStudioPage() {
     }
   }, []);
 
-  const abrirSelector = () => fileInputRef.current?.click();
+  const abrirSelector = () => {
+    if (!licenciaActiva) {
+      irA("activar");
+      return;
+    }
+    fileInputRef.current?.click();
+  };
 
   const manejarSubidaVideo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -253,15 +303,6 @@ export default function EditorStudioPage() {
     }
   };
 
-  const marcarInicio = () => videoRef.current && setInicioTxt(formatearTiempo(videoRef.current.currentTime));
-  const marcarFin = () => videoRef.current && setFinTxt(formatearTiempo(videoRef.current.currentTime));
-
-  const moverTimeline = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const t = Number(e.target.value);
-    if (videoRef.current) videoRef.current.currentTime = t;
-    setTiempoActual(t);
-  };
-
   const probarCorte = () => {
     const v = videoRef.current;
     if (!v || duracionClip <= 0) return;
@@ -278,8 +319,11 @@ export default function EditorStudioPage() {
     return null;
   };
 
-  // Generar MP4 aplicando redimensionamiento y Marca de Agua opcional
   const generarMP4 = async (descargar: boolean) => {
+    if (!licenciaActiva) {
+      irA("activar");
+      return;
+    }
     const error = validarTramo();
     if (error) return setMensaje(error);
 
@@ -298,10 +342,8 @@ export default function EditorStudioPage() {
           ? `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},setsar=1`
           : `scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
 
-      // Agregar marca de agua si el usuario escribió texto
       if (textoMarcaAgua.trim()) {
         const textoEscapado = textoMarcaAgua.replace(/:/g, '\\:').replace(/'/g, '');
-        // Coloca la marca de agua abajo a la derecha con estilo profesional
         filtro += `,drawtext=text='${textoEscapado}':fontcolor=white:fontsize=24:x=w-tw-30:y=h-th-30:box=1:boxcolor=black@0.5:boxborderw=8`;
       }
 
@@ -367,7 +409,6 @@ export default function EditorStudioPage() {
   };
 
   const guardados = clips.filter((c) => !c.papelera);
-  const [anchoPrev, altoPrev] = aspecto.split(":").map(Number);
 
   const navegacion = (
     <nav className="space-y-1">
@@ -401,9 +442,12 @@ export default function EditorStudioPage() {
           </Link>
           {navegacion}
         </div>
-        <Link href="/#planes" className="flex items-center gap-2.5 border-t border-[#1e1519] px-2 pt-4 text-xs font-bold text-[#d8cdd1]">
-          <span className="h-2 w-2 rounded-full bg-[#f43f5e]" /> Mi cuenta y planes
-        </Link>
+        <div className="border-t border-[#1e1519] px-2 pt-4">
+          <div className="text-[11px] text-[#9e9196] mb-1">Estado de cuenta:</div>
+          <div className={`text-xs font-bold ${licenciaActiva ? "text-emerald-400" : "text-amber-400"}`}>
+            {licenciaActiva ? "● Licencia Activa" : "○ Sin Licencia"}
+          </div>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -421,11 +465,54 @@ export default function EditorStudioPage() {
               Estudio / <span className="font-bold text-white">{NOMBRE_SECCION[seccion]}</span>
             </div>
 
+            {seccion === "activar" && (
+              <div className={`${CARD} p-6 sm:p-8 max-w-lg mx-auto space-y-5`}>
+                <Eyebrow>Activación de Cuenta</Eyebrow>
+                <Titulo>Introduce tu Código</Titulo>
+                <p className="text-sm text-[#c7bcc0]">
+                  Escribe el código único que recibiste en tu WhatsApp al realizar el pago para liberar el acceso completo a la plataforma.
+                </p>
+                <form onSubmit={activarCodigoUnico} className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-white">Código de Licencia</label>
+                    <input
+                      type="text"
+                      value={codigoInput}
+                      onChange={(e) => setCodigoInput(e.target.value)}
+                      placeholder="Ej. TRUCHO-PRO-777"
+                      className={CAMPO}
+                    />
+                  </div>
+                  <button type="submit" className={`${BTN_ROSA} w-full`}>
+                    🔓 Activar Plan Ahora
+                  </button>
+                </form>
+                {mensajeLicencia && (
+                  <p className="text-xs font-bold text-[#f43f5e] mt-2">{mensajeLicencia}</p>
+                )}
+                {licenciaActiva && (
+                  <div className="pt-2">
+                    <button onClick={() => irA("editor")} className={`${BTN_GRIS} w-full text-emerald-400 border-emerald-500/40`}>
+                      Ir al Editor de Video →
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {seccion === "resumen" && (
               <div>
                 <Eyebrow>Plataforma para Streaming y Videos</Eyebrow>
                 <Titulo>Estudio de <span className="text-[#f43f5e]">Clips y Streaming.</span></Titulo>
                 <p className="mb-6 text-sm text-[#c7bcc0]">Ideal para TikTok, YouTube, Spotify, Shorts y videos normales con marca de agua personalizada.</p>
+                
+                {!licenciaActiva && (
+                  <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-300 flex items-center justify-between">
+                    <span>⚠️ Tienes acceso de prueba. Activa tu licencia para usar todas las funciones del editor.</span>
+                    <button onClick={() => irA("activar")} className="underline font-bold">Activar aquí</button>
+                  </div>
+                )}
+
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <button onClick={() => irA("directos")} className={`${CARD} p-5 text-left transition hover:border-[#f43f5e]/50`}>
                     <h3 className="mb-1 text-lg font-extrabold text-white">En Vivos (Lives)</h3>
