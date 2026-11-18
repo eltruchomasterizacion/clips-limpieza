@@ -1,0 +1,13 @@
+﻿node_modules/
+.next/
+out/
+build/
+exportados/
+.whisper-cache/
+yt-dlp.exe
+*.mp4
+*.webm
+*.onnx
+.env*.local
+.DS_Store
+node_modules
